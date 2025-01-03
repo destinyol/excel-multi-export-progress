@@ -41,19 +41,12 @@ public class ExcelExportRunner {
     private static final int BATCH_COUNT = ExcelExportMainTool.BATCH_COUNT;
     private static final int BATCH_COUNT_QUERY = ExcelExportMainTool.BATCH_COUNT_QUERY;
     private static final int SHEET_CUNT_NUM = ExcelExportMainTool.SHEET_CUNT_NUM;
-    private static final int _BATCH = BATCH_COUNT / BATCH_COUNT_QUERY;
-    private final List<Object> dataList = Collections.synchronizedList(new ArrayList<>());
-
     private Class dataClass;
-    private final List<Future<Object>> futures = new ArrayList<>();
     private ExecutorService executorService;
     private String processKey;
     private String preKey;
 
     public void run(String fileName, Object sqlFilterClass){
-        if (BATCH_COUNT%BATCH_COUNT_QUERY!=0 || BATCH_COUNT < BATCH_COUNT_QUERY){
-            throw new RuntimeException("参数设置错误，BATCH_COUNT必须是BATCH_COUNT_QUERY整数倍并且大于它");
-        }
         if (sheetName == null || sheetName.isEmpty()){
             sheetName = defaultSheetName;
         }
@@ -64,20 +57,31 @@ public class ExcelExportRunner {
         Long totalCount = dataGetter.countDataTotal(sqlFilterClass);
 
         String fileNamePath = fileSavePath + fileName;
+
+        if (BATCH_COUNT > BATCH_COUNT_QUERY){
+            runBatchByEasyExcel(fileNamePath,fileName,totalCount,sqlFilterClass,sheetNum,currentCount,sheetCutCount);
+        }else{
+            runBatchBySql(fileNamePath,fileName,totalCount,sqlFilterClass,sheetNum,currentCount,sheetCutCount);
+        }
+
+        ExportProgress progressObj1 = new ExportProgress(preKey, ((double)currentCount.get()/(double)totalCount), 2,fileName);
+        redisTemplate.opsForValue().set(processKey, progressObj1);
+
+    }
+
+    private void runBatchByEasyExcel(String fileNamePath,String fileName,Long totalCount,Object sqlFilterClass,Integer sheetNum,AtomicLong currentCount,AtomicLong sheetCutCount){
+        final List<Future<Object>> futures = new ArrayList<>();
+        final List<Object> dataList = Collections.synchronizedList(new ArrayList<>());
         ExcelWriter excelWriter = EasyExcel.write(fileNamePath, dataClass).build();
         WriteSheet writeSheet = EasyExcel.writerSheet(sheetName).build();
 
-        // 批次控制
-        Long wholeBatch = (totalCount / BATCH_COUNT) + 1;
-        Long wholeQueryBatch = (totalCount / BATCH_COUNT_QUERY) + 1;
-        AtomicInteger wholeIndex = new AtomicInteger(1);
+        while (currentCount.get() < totalCount){
+            final AtomicLong oneBatchCount = new AtomicLong(0);
 
-        for (int i = 0;i < wholeBatch;i++){
-
-            for (AtomicInteger index = new AtomicInteger(0); index.get() < _BATCH && index.get() < wholeQueryBatch; index.incrementAndGet(),wholeIndex.incrementAndGet()) {
-                int finalWholeIndex = wholeIndex.get();
+            while (oneBatchCount.get() < BATCH_COUNT) {
+                Integer pageNum = Math.toIntExact((currentCount.get() / BATCH_COUNT_QUERY) + 1);
                 Object sqlFilterClassCopy = BeanUtil.copyProperties(sqlFilterClass, sqlFilterClass.getClass());     // copy一份，避免多线程查询过程中修改该类，避免多线程问题
-                Future<Object> future = executorService.submit(() -> dataGetter.readData(BATCH_COUNT_QUERY, finalWholeIndex,sqlFilterClassCopy));
+                Future<Object> future = executorService.submit(() -> dataGetter.readData(BATCH_COUNT_QUERY, pageNum, sqlFilterClassCopy));
                 futures.add(future);
             }
 
@@ -111,14 +115,50 @@ public class ExcelExportRunner {
                 writeSheet = EasyExcel.writerSheet(sheetName+sheetNum).build();
             }
             dataList.clear();
+            excelWriter.finish();   // 不finish文件会报错
+
+        }
+    }
+
+    private void runBatchBySql(String fileNamePath,String fileName,Long totalCount,Object sqlFilterClass,Integer sheetNum,AtomicLong currentCount,AtomicLong sheetCutCount){
+        ExcelWriter excelWriter = EasyExcel.write(fileNamePath, dataClass).build();
+        WriteSheet writeSheet = EasyExcel.writerSheet(sheetName).build();
+
+        while (currentCount.get() < totalCount){
+            Integer pageNum = Math.toIntExact((currentCount.get() / BATCH_COUNT_QUERY) + 1);
+            Object sqlFilterClassCopy = BeanUtil.copyProperties(sqlFilterClass, sqlFilterClass.getClass());
+            List<Object> objects = dataGetter.readData(BATCH_COUNT_QUERY, pageNum, sqlFilterClassCopy);
+
+            if (objects != null && !objects.isEmpty()){
+                if (!dataClass.isInstance(objects.get(0))){
+                    ExportProgress progressObj = new ExportProgress(preKey, ((double)currentCount.get()/(double)totalCount), 3,fileName);
+                    progressObj.setWrongCode("111000"); // 错误码，可自定义
+                    redisTemplate.opsForValue().set(processKey, progressObj);
+                    throw new RuntimeException("类型错误，返回数据类不是期望实体类");
+                }
+            }
+
+            for (int start = 0; start < objects.size(); start += BATCH_COUNT) {
+                int end = Math.min(start + BATCH_COUNT, objects.size());
+                List<Object> batch = objects.subList(start,end);
+
+                excelWriter.write(batch, writeSheet);
+                currentCount.addAndGet(objects.size());
+                sheetCutCount.addAndGet(objects.size());
+
+                ExportProgress progressObj = new ExportProgress(preKey, ((double)currentCount.get()/(double)totalCount), 1,fileName);
+                redisTemplate.opsForValue().set(processKey, progressObj);
+
+                if (sheetCutCount.get() >= SHEET_CUNT_NUM){ // 超过每页sheet数据上限
+                    sheetCutCount.set(0);
+                    sheetNum++;
+                    writeSheet = EasyExcel.writerSheet(sheetName+sheetNum).build();
+                }
+            }
 
             excelWriter.finish();   // 不finish文件会报错
 
         }
-
-        ExportProgress progressObj1 = new ExportProgress(preKey, ((double)currentCount.get()/(double)totalCount), 2,fileName);
-        redisTemplate.opsForValue().set(processKey, progressObj1);
-
     }
 
     public ExportProgress runAsync(Object sqlFilterClass){
@@ -173,7 +213,7 @@ public class ExcelExportRunner {
         }
     }
 
-    public static String generateConcurrentUUID(String ident) {
+    private static String generateConcurrentUUID(String ident) {
         String result = ident +
                 System.currentTimeMillis() +
                 COUNT.incrementAndGet();

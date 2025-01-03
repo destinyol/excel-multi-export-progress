@@ -6,13 +6,13 @@ import org.springframework.data.redis.core.RedisTemplate;
 import javax.servlet.http.HttpServletResponse;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-
-import static cn.com.lyntok.common.excel.excelExportFramework.ExcelExportRunner.ensureEndsWithFileSeparator;
+import static com.example.excelmultiexportprogress.excelExportFramework.ExcelExportRunner.ensureEndsWithFileSeparator;
 
 public class ExcelExportMainTool {
 
-    public static final int BATCH_COUNT = 2000; // 批量处理，每批插入Excel中的数据，可根据情况自行修改，必须是BATCH_COUNT_QUERY的整数倍，并且大于它
-    public static final int BATCH_COUNT_QUERY = 200; // 多线程分页查询，每页的数据量，凑够BATCH_COUNT数量就执行插入（决定进度条粒度，查出一次结果进度条改变一次）
+    // BATCH_COUNT 和 BATCH_COUNT_QUERY，谁小决定了进度条的最小处理粒度
+    public static final int BATCH_COUNT = 5000; // 批量处理，每批插入Excel中的数据行数，可根据情况自行优化更改
+    public static final int BATCH_COUNT_QUERY = 1000; // 多线程分页查询，每页的数据行数，可自行优化更改（若 BATCH_COUNT_QUERY > BATCH_COUNT，则不是多线程，因为EasyExcel分批多次插入不能多线程）
     public static final int SHEET_CUNT_NUM = 100000; // 大约n条数据分一个sheet
     public static final String FILE_SAVE_PATH = ensureEndsWithFileSeparator(System.getProperty("java.io.tmpdir")); // 临时excel文件存放位置，可自定义，默认是系统临时文件夹
 
