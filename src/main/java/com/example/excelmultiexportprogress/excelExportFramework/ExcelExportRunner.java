@@ -74,14 +74,20 @@ public class ExcelExportRunner {
         final List<Object> dataList = Collections.synchronizedList(new ArrayList<>());
         ExcelWriter excelWriter = EasyExcel.write(fileNamePath, dataClass).build();
         WriteSheet writeSheet = EasyExcel.writerSheet(sheetName).build();
+        Integer oneBatch = BATCH_COUNT % BATCH_COUNT_QUERY == 0 ? BATCH_COUNT / BATCH_COUNT_QUERY : BATCH_COUNT / BATCH_COUNT_QUERY + 1;
+        Integer oneBatchTotalCount = Math.toIntExact(totalCount % BATCH_COUNT_QUERY == 0 ? totalCount / BATCH_COUNT_QUERY : totalCount / BATCH_COUNT_QUERY + 1);
+        int sqlBatchCount = 0;
+        oneBatch = Math.min(oneBatch,oneBatchTotalCount);
 
         while (currentCount.get() < totalCount){
             final AtomicLong oneBatchCount = new AtomicLong(0);
 
-            while (oneBatchCount.get() < BATCH_COUNT) {
-                Integer pageNum = Math.toIntExact((currentCount.get() / BATCH_COUNT_QUERY) + 1);
+            while (oneBatchCount.get() < oneBatch) {
+                oneBatchCount.addAndGet(1);
+                sqlBatchCount++;
+                int finalSqlBatchCount = sqlBatchCount;
                 Object sqlFilterClassCopy = BeanUtil.copyProperties(sqlFilterClass, sqlFilterClass.getClass());     // copy一份，避免多线程查询过程中修改该类，避免多线程问题
-                Future<Object> future = executorService.submit(() -> dataGetter.readData(BATCH_COUNT_QUERY, pageNum, sqlFilterClassCopy));
+                Future<Object> future = executorService.submit(() -> dataGetter.readData(BATCH_COUNT_QUERY, finalSqlBatchCount, sqlFilterClassCopy));
                 futures.add(future);
             }
 
@@ -131,9 +137,6 @@ public class ExcelExportRunner {
 
             if (objects != null && !objects.isEmpty()){
                 if (!dataClass.isInstance(objects.get(0))){
-                    ExportProgress progressObj = new ExportProgress(preKey, ((double)currentCount.get()/(double)totalCount), 3,fileName);
-                    progressObj.setWrongCode("111000"); // 错误码，可自定义
-                    redisTemplate.opsForValue().set(processKey, progressObj);
                     throw new RuntimeException("类型错误，返回数据类不是期望实体类");
                 }
             }
