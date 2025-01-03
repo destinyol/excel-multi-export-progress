@@ -1,0 +1,11 @@
+spring:
+  profiles:
+    active: dev
+  messages:
+    basename: i18n/system
+#mybatis
+mybatis-plus:
+  configuration:
+    cache-enabled: false
+  mapper-locations: classpath:mapper/**/*.xml
+#  config-locations: classpath:mapper/**/*.xml

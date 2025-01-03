@@ -1,0 +1,26 @@
+server:
+  port: 8085
+  tomcat:
+    threads:
+      max: 10
+mybatis-plus:
+  configuration:
+    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
+spring:
+  servlet:
+    multipart:
+      max-request-size: 120MB
+      max-file-size: 120MB
+
+  redis:
+    host: 127.0.0.1
+    port: 6379
+    timeout: 15000
+    max-total: 10000
+    max-idle: 8
+    min-idle: 1
+    max-wait: 15000
+logging:
+  config: classpath:logback/logback-spring.xml
+
+
