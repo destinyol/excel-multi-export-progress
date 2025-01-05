@@ -5,7 +5,7 @@ server:
       max: 10
 mybatis-plus:
   configuration:
-    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
+#    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
 spring:
   servlet:
     multipart:

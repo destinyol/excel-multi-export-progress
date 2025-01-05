@@ -50,13 +50,22 @@ public class ExcelExportRunner {
         if (sheetName == null || sheetName.isEmpty()){
             sheetName = defaultSheetName;
         }
+        long startTime = 0;
+        if (ExcelExportMainTool.DEBUG_LOG_RUNNING_TIMES){
+            System.out.println("---------------------- excel导出任务开始 --------------------------");
+            startTime = System.currentTimeMillis(); // 获取开始时间
+        }
 
         final AtomicLong currentCount = new AtomicLong(0);
         final AtomicLong sheetCutCount = new AtomicLong(0);
         Integer sheetNum = 0;
         Long totalCount = dataGetter.countDataTotal(sqlFilterClass);
-
         String fileNamePath = fileSavePath + fileName;
+
+        if (ExcelExportMainTool.DEBUG_LOG_RUNNING_TIMES){
+            System.out.println("(excel导出) 数据行数："+totalCount);
+            System.out.println("(excel导出) 临时文件保存位置："+fileNamePath);
+        }
 
         if (BATCH_COUNT > BATCH_COUNT_QUERY){
             runBatchByEasyExcel(fileNamePath,fileName,totalCount,sqlFilterClass,sheetNum,currentCount,sheetCutCount);
@@ -66,6 +75,14 @@ public class ExcelExportRunner {
 
         ExportProgress progressObj1 = new ExportProgress(preKey, ((double)currentCount.get()/(double)totalCount), 2,fileName);
         redisTemplate.opsForValue().set(processKey, progressObj1);
+
+        if (ExcelExportMainTool.DEBUG_LOG_RUNNING_TIMES){
+            long endTime = System.currentTimeMillis(); // 获取结束时间
+            long duration = endTime - startTime; // 计算运行时间（单位：毫秒）
+            System.out.println("---------------------- excel导出任务结束 --------------------------");
+            System.out.println("(excel导出) 运行时间：" + duration + " 毫秒");
+        }
+
 
     }
 
@@ -113,7 +130,6 @@ public class ExcelExportRunner {
             }
 
             futures.clear();
-
             excelWriter.write(dataList, writeSheet);
             if (sheetCutCount.get() >= SHEET_CUNT_NUM){ // 超过每页sheet数据上限
                 sheetCutCount.set(0);
@@ -121,9 +137,8 @@ public class ExcelExportRunner {
                 writeSheet = EasyExcel.writerSheet(sheetName+sheetNum).build();
             }
             dataList.clear();
-            excelWriter.finish();   // 不finish文件会报错
-
         }
+        excelWriter.finish();   // 不finish文件会报错
     }
 
     private void runBatchBySql(String fileNamePath,String fileName,Long totalCount,Object sqlFilterClass,Integer sheetNum,AtomicLong currentCount,AtomicLong sheetCutCount){

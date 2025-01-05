@@ -15,6 +15,7 @@ public class ExcelExportMainTool {
     public static final int BATCH_COUNT_QUERY = 1000; // 多线程分页查询，每页的数据行数，可自行优化更改（若 BATCH_COUNT_QUERY > BATCH_COUNT，则不是多线程，因为EasyExcel分批多次插入不能多线程）
     public static final int SHEET_CUNT_NUM = 100000; // 大约n条数据分一个sheet
     public static final String FILE_SAVE_PATH = ensureEndsWithFileSeparator(System.getProperty("java.io.tmpdir")); // 临时excel文件存放位置，可自定义，默认是系统临时文件夹
+    public static final Boolean DEBUG_LOG_RUNNING_TIMES = false; // 打印导出运行时间，true：打印， false：不打印
 
     /**
      * 主要构造方法
