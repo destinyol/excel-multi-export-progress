@@ -1,4 +1,9 @@
 package com.example.excelmultiexportprogress.controller;
+import com.example.excelmultiexportprogress.dao.TravelMapper;
+import com.example.excelmultiexportprogress.excelExportFramework.ExcelExportMainTool;
+import com.example.excelmultiexportprogress.excelExportFramework.ExportProgress;
+import com.example.excelmultiexportprogress.excelExportFrameworkImpl.TravelDataGetter;
+import com.example.excelmultiexportprogress.excelExportFrameworkImpl.TravelExpenseExtraInfo;
 import com.example.excelmultiexportprogress.model.Response;
 import com.example.excelmultiexportprogress.model.TravelSearchDto;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -16,6 +21,9 @@ public class TravelController {
     @Autowired
     private RedisTemplate redisTemplate;
 
+    @Autowired
+    private TravelMapper travelMapper;
+
     /**
      * 导出费用明细统计excel
      */
@@ -24,7 +32,9 @@ public class TravelController {
         Response response = new Response();
         response.ret(0,"成功了");
         try {
-
+            TravelDataGetter dataGetter = new TravelDataGetter(travelMapper);
+            ExportProgress res = ExcelExportMainTool.build(TravelExpenseExtraInfo.class, dataGetter, redisTemplate).setSheetName("费用统计").runAsync(travelSearchDto);
+            response.setData(res);
         } catch (Exception e) {
             e.printStackTrace();
             response.ret(111000,"出错了");
@@ -40,7 +50,7 @@ public class TravelController {
         Response response = new Response();
         response.ret(0,"成功了");
         try {
-
+            ExcelExportMainTool.getProgress(redisTemplate,processKey);
         } catch (Exception e) {
             e.printStackTrace();
             response.ret(111000,"出错了");
@@ -56,7 +66,7 @@ public class TravelController {
         Response response = new Response();
         response.ret(0,"成功了");
         try {
-
+            ExcelExportMainTool.downloadExcel(httpResponse,fileName);
         } catch (Exception e) {
             e.printStackTrace();
             response.ret(111000,"出错了");

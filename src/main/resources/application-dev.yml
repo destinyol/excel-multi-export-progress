@@ -11,7 +11,11 @@ spring:
     multipart:
       max-request-size: 120MB
       max-file-size: 120MB
-
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: jdbc:mysql://127.0.0.1:3306/test_excel?serverTimezone=UTC&useSSL=false&useUnicode=true&characterEncoding=UTF-8&rewriteBatchedStatements=true
+    username: root
+    password: 123456
   redis:
     host: 127.0.0.1
     port: 6379
@@ -20,7 +24,5 @@ spring:
     max-idle: 8
     min-idle: 1
     max-wait: 15000
-logging:
-  config: classpath:logback/logback-spring.xml
 
 

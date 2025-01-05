@@ -27,8 +27,14 @@ public class Travel implements Serializable {
     @TableField(value = "remarks")
     private String remarks;
 
-    @TableField(exist = false)
+    @TableField(value = "user_name")
     private String userName;
+
+    @TableField(value = "depart_id")
+    private String departId;
+
+    @TableField(value = "depart_name")
+    private String departName;
 
     /**
      * 编号
@@ -37,30 +43,22 @@ public class Travel implements Serializable {
     private String serialNumber;
 
     /**
-     * 金额合计(大写)
+     * 项目编号
      */
-    @TableField(value = "amount_in_words")
-    private String amountInWords;
-    @TableField(value = "ticket_status")
-    private Integer ticketStatus;
+    @TableField(value = "project_code")
+    private String projectCode;
 
     /**
-     * 价税合计(小写)
+     * 项目编号
      */
-    @TableField(value = "amount_in_figures")
-    private BigDecimal amountInFigures;
+    @TableField(value = "project_name")
+    private String projectName;
 
     /**
-     * 发票金额
+     * 金额
      */
-    @TableField(value = "invoice_amount")
-    private BigDecimal invoiceAmount;
-
-    /**
-     * 差旅费金额
-     */
-    @TableField(value = "travel_amount")
-    private BigDecimal travelAmount;
+    @TableField(value = "amount")
+    private BigDecimal amount;
 
     /**
      * 申请状态
@@ -68,30 +66,17 @@ public class Travel implements Serializable {
     @TableField(value = "travel_status")
     private Integer travelStatus;
 
-
     /**
-     * 是否撤销申请 1 是 0 否
+     * 发生日期
      */
-    @TableField(value = "type_status")
-    private Integer typeStatus;
-    /**
-     * 撤销原因
-     */
-    @TableField(value = "revoke_remark")
-    private String revokeRemark;
+    @TableField(value = "occur_time")
+    private String occurTime;
 
     /**
      * 提交时间
      */
     @TableField(value = "create_time")
     private String createTime;
-
-    /**
-     * 标题
-     */
-    @TableField(value = "title")
-    private String title;
-
     @TableField(exist = false)
     private static final long serialVersionUID = 1L;
 

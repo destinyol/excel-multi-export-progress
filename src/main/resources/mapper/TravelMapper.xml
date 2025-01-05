@@ -6,10 +6,15 @@
 
 
     <select id="getTravelList" resultType="com.example.excelmultiexportprogress.excelExportFrameworkImpl.TravelExpenseExtraInfo">
-
+        select tt.serial_number,tt.user_name,tt.depart_name,tt.project_name,
+               tt.project_code,tt.remarks,tt.occur_time,tt.amount
+        from td_travel tt
+        where tt.id > #{offset}
+        limit #{pageSize}
     </select>
 
     <select id="getTravelListCount" resultType="java.lang.Long">
-
+        select count(1)
+        from td_travel tt
     </select>
 </mapper>

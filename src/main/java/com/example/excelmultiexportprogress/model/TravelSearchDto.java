@@ -10,5 +10,9 @@ public class TravelSearchDto {
     private Integer pageSize;
     private Integer pageNum;
 
+    public Integer getOffset() {
+        return (getPageNum() - 1) * getPageSize();
+    }
+
 
 }
