@@ -50,7 +50,8 @@ public class TravelController {
         Response response = new Response();
         response.ret(0,"成功了");
         try {
-            ExcelExportMainTool.getProgress(redisTemplate,processKey);
+            ExportProgress progress = ExcelExportMainTool.getProgress(redisTemplate, processKey);
+            response.setData(progress);
         } catch (Exception e) {
             e.printStackTrace();
             response.ret(111000,"出错了");
