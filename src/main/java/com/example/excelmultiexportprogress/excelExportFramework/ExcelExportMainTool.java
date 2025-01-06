@@ -10,7 +10,7 @@ import static com.example.excelmultiexportprogress.excelExportFramework.ExcelExp
 
 public class ExcelExportMainTool {
 
-    // BATCH_COUNT 和 BATCH_COUNT_QUERY，谁小决定了进度条的最小处理粒度
+    // BATCH_COUNT 和 BATCH_COUNT_QUERY，谁小决定了进度条的粒度
     public static final int BATCH_COUNT = 5000; // 批量处理，每批插入Excel中的数据行数，可根据情况自行优化更改
     public static final int BATCH_COUNT_QUERY = 1000; // 多线程分页查询，每页的数据行数，可自行优化更改（若 BATCH_COUNT_QUERY > BATCH_COUNT，则不是多线程，因为EasyExcel分批多次插入不能多线程）
     public static final int SHEET_CUNT_NUM = 100000; // 大约n条数据分一个sheet
