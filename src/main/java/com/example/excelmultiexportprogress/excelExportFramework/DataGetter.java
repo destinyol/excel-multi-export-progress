@@ -2,6 +2,9 @@ package com.example.excelmultiexportprogress.excelExportFramework;
 
 import java.util.List;
 
+/**
+ * 分页获取数据策略类
+ */
 public interface DataGetter {
 
     /**
