@@ -85,7 +85,7 @@ public class ExcelExportMainTool {
     }
 
     /**
-     * 下载excel文件，下载完成后自动删除
+     * 下载异步导出的excel文件，下载完成后自动删除
      * @param fileName 返回给前端的文件名
      * @return
      */
