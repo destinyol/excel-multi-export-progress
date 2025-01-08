@@ -18,10 +18,9 @@ public class ExcelExportMainTool {
 
     public static final int SHEET_CUNT_NUM = 100000; // 控制大约多少条数据分一个sheet，建议10万行
 
-    public static final String FILE_SAVE_PATH = "D:\\"; // 临时excel文件存放位置，可自定义，默认是系统临时文件夹
-//    public static final String FILE_SAVE_PATH = ensureEndsWithFileSeparator(System.getProperty("java.io.tmpdir")); // 临时excel文件存放位置，可自定义，默认是系统临时文件夹
+    public static final String FILE_SAVE_PATH = ensureEndsWithFileSeparator(System.getProperty("java.io.tmpdir")); // 临时excel文件存放位置，可自定义，默认是系统临时文件夹
 
-    public static final Boolean DEBUG_LOG_RUNNING_TIMES = true; // 打印导出运行时间，true：打印， false：不打印
+    public static final Boolean DEBUG_LOG_RUNNING_TIMES = false; // 打印导出运行时间，true：打印， false：不打印
 
     /**
      * 主要构造方法
