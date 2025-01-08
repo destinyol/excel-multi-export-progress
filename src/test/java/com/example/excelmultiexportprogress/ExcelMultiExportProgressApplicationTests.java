@@ -40,7 +40,7 @@ class ExcelMultiExportProgressApplicationTests {
 
         // 每批插入 1000 条数据
         int batchSize = 1000;
-        int totalRecords = 150000;
+        int totalRecords = 1000000;
 
         // 创建一个固定大小的线程池
         int threadPoolSize = 10; // 可以根据实际情况调整线程池大小

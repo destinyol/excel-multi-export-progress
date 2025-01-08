@@ -63,7 +63,6 @@ export default {
   data() {
     return {
       exportLoading:false,
-      accept: '.xls,.xlsx',
       dialogVisible:false,
 
       progressKey:null,
@@ -111,7 +110,7 @@ export default {
         'timestamp': cookie_user.timestamp,
       }
       axios({
-        url: process.env.VUE_APP_BASEURL+this.url+"/downloadExportExcel"+"?fileName="+this.fileName,
+        url: this.url+"/downloadExportExcel"+"?fileName="+this.fileName,
         method: 'GET',
         responseType: 'blob', // 重要：设置响应类型为blob
         headers: header,

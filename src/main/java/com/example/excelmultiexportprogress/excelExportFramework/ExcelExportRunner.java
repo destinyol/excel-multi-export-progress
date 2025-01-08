@@ -32,6 +32,98 @@ public class ExcelExportRunner {
         this.executorService = executorService;
     }
 
+    /**
+     * 异步启动导出方法
+     * @param sqlFilterClass 筛选条件
+     * @return
+     */
+    public ExportProgress runAsync(Object sqlFilterClass){
+        String fileName = UUID.randomUUID()+".xlsx";
+        ExecutorService executor = Executors.newSingleThreadExecutor();
+        String key = generateConcurrentUUID(EXPORT_EXCEL_REDIS_KEY);
+        String keyStr = EXPORT_EXCEL_REDIS_KEY + key;
+        this.processKey = keyStr;
+        this.preKey = key;
+        ExportProgress progressObj1 = new ExportProgress(preKey, 0.0, 1,fileName);
+        redisTemplate.opsForValue().set(processKey, progressObj1);
+        executor.submit(() -> {
+            try {
+                this.run(fileName,sqlFilterClass);
+            }catch (Exception e){
+                e.printStackTrace();
+            }
+        });
+        return progressObj1;
+    }
+
+    /**
+     * 异步启动导出方法
+     * @return
+     */
+    public ExportProgress runAsync(){
+        return this.runAsync(null);
+    }
+
+    /**
+     * 同步启动导出方法
+     * @param sqlFilterClass 筛选条件
+     * @return
+     */
+    public void runSync(HttpServletResponse response,Object sqlFilterClass){
+        String fileName = UUID.randomUUID()+".xlsx";
+        String key = generateConcurrentUUID(EXPORT_EXCEL_REDIS_KEY);
+        String keyStr = EXPORT_EXCEL_REDIS_KEY + key;
+        this.processKey = keyStr;
+        this.preKey = key;
+        try {
+            this.run(response,fileName,sqlFilterClass);
+        }catch (Exception e){
+            e.printStackTrace();
+        }
+    }
+
+    /**
+     * 同步启动导出方法
+     * @return
+     */
+    public void runSync(HttpServletResponse response){
+        this.runSync(response,null);
+    }
+
+    /**
+     * 下载导出文件，下载完成后自动删除
+     * @param response
+     * @param fileName
+     */
+    public static void downloadExcel(HttpServletResponse response, String fileName){
+        // 假设你有一个文件路径
+        File file = new File(fileSavePath + fileName);
+
+        // 设置响应头
+        response.setContentType("application/octet-stream");
+        response.setHeader(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=" + fileName);
+        response.setHeader("Access-Control-Expose-Headers", "Content-Disposition");
+        response.setContentLengthLong(file.length());
+        // 读取文件并写入响应
+        try (BufferedInputStream bis = new BufferedInputStream(new FileInputStream(file));
+             OutputStream os = response.getOutputStream()) {
+            byte[] buffer = new byte[1024];
+            int bytesRead;
+            while ((bytesRead = bis.read(buffer)) != -1) {
+                os.write(buffer, 0, bytesRead);
+            }
+        } catch (IOException e) {
+            // 处理异常，例如记录日志
+            e.printStackTrace();
+        }
+        try {
+            Files.deleteIfExists(file.toPath());
+        } catch (IOException e) {
+            e.printStackTrace();
+            System.out.println("-------------- 导出excel临时文件删除失败 -----------------");
+        }
+    }
+
     private static final String fileSavePath = ExcelExportMainTool.FILE_SAVE_PATH;
     @Setter
     private String sheetName;
@@ -46,7 +138,10 @@ public class ExcelExportRunner {
     private String processKey;
     private String preKey;
 
-    public void run(String fileName, Object sqlFilterClass){
+    private void run(String fileName, Object sqlFilterClass){
+        String fileNamePath = fileSavePath + fileName;
+        ExcelWriter excelWriter = EasyExcel.write(fileNamePath, dataClass).build();
+
         if (sheetName == null || sheetName.isEmpty()){
             sheetName = defaultSheetName;
         }
@@ -60,17 +155,15 @@ public class ExcelExportRunner {
         final AtomicLong sheetCutCount = new AtomicLong(0);
         Integer sheetNum = 0;
         Long totalCount = dataGetter.countDataTotal(sqlFilterClass);
-        String fileNamePath = fileSavePath + fileName;
 
         if (ExcelExportMainTool.DEBUG_LOG_RUNNING_TIMES){
             System.out.println("(excel导出) 数据行数："+totalCount);
-            System.out.println("(excel导出) 临时文件保存位置："+fileNamePath);
         }
 
         if (BATCH_COUNT > BATCH_COUNT_QUERY){
-            runBatchByEasyExcel(fileNamePath,fileName,totalCount,sqlFilterClass,sheetNum,currentCount,sheetCutCount);
+            runBatchByEasyExcel(excelWriter,fileName,totalCount,sqlFilterClass,sheetNum,currentCount,sheetCutCount);
         }else{
-            runBatchBySql(fileNamePath,fileName,totalCount,sqlFilterClass,sheetNum,currentCount,sheetCutCount);
+            runBatchBySql(excelWriter,fileName,totalCount,sqlFilterClass,sheetNum,currentCount,sheetCutCount);
         }
 
         ExportProgress progressObj1 = new ExportProgress(preKey, ((double)currentCount.get()/(double)totalCount), 2,fileName);
@@ -81,15 +174,58 @@ public class ExcelExportRunner {
             long duration = endTime - startTime; // 计算运行时间（单位：毫秒）
             System.out.println("---------------------- excel导出任务结束 --------------------------");
             System.out.println("(excel导出) 运行时间：" + duration + " 毫秒");
+            System.out.println("(excel导出) 临时文件保存位置："+fileNamePath);
         }
-
-
     }
 
-    private void runBatchByEasyExcel(String fileNamePath,String fileName,Long totalCount,Object sqlFilterClass,Integer sheetNum,AtomicLong currentCount,AtomicLong sheetCutCount){
+    private void run(HttpServletResponse response,String fileName, Object sqlFilterClass){
+        response.setContentType("application/vnd.ms-excel");
+        response.setCharacterEncoding("utf-8");
+        response.setHeader("Access-Control-Expose-Headers", "Content-Disposition");
+        response.setHeader("Content-disposition", "attachment;filename=" + fileName + ".xlsx");
+
+        ExcelWriter excelWriter = null;
+        try {
+            excelWriter = EasyExcel.write(response.getOutputStream(), dataClass).build();
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+
+        if (sheetName == null || sheetName.isEmpty()){
+            sheetName = defaultSheetName;
+        }
+        long startTime = 0;
+        if (ExcelExportMainTool.DEBUG_LOG_RUNNING_TIMES){
+            System.out.println("---------------------- excel导出任务开始 --------------------------");
+            startTime = System.currentTimeMillis(); // 获取开始时间
+        }
+
+        final AtomicLong currentCount = new AtomicLong(0);
+        final AtomicLong sheetCutCount = new AtomicLong(0);
+        Integer sheetNum = 0;
+        Long totalCount = dataGetter.countDataTotal(sqlFilterClass);
+
+        if (ExcelExportMainTool.DEBUG_LOG_RUNNING_TIMES){
+            System.out.println("(excel导出) 数据行数："+totalCount);
+        }
+
+        if (BATCH_COUNT > BATCH_COUNT_QUERY){
+            runBatchByEasyExcel(excelWriter,fileName,totalCount,sqlFilterClass,sheetNum,currentCount,sheetCutCount);
+        }else{
+            runBatchBySql(excelWriter,fileName,totalCount,sqlFilterClass,sheetNum,currentCount,sheetCutCount);
+        }
+
+        if (ExcelExportMainTool.DEBUG_LOG_RUNNING_TIMES){
+            long endTime = System.currentTimeMillis(); // 获取结束时间
+            long duration = endTime - startTime; // 计算运行时间（单位：毫秒）
+            System.out.println("---------------------- excel导出任务结束 --------------------------");
+            System.out.println("(excel导出) 运行时间：" + duration + " 毫秒");
+        }
+    }
+
+    private void runBatchByEasyExcel(ExcelWriter excelWriter, String fileName, Long totalCount,Object sqlFilterClass,Integer sheetNum,AtomicLong currentCount,AtomicLong sheetCutCount){
         final List<Future<Object>> futures = new ArrayList<>();
         final List<Object> dataList = Collections.synchronizedList(new ArrayList<>());
-        ExcelWriter excelWriter = EasyExcel.write(fileNamePath, dataClass).build();
         WriteSheet writeSheet = EasyExcel.writerSheet(sheetName).build();
         Integer oneBatch = BATCH_COUNT % BATCH_COUNT_QUERY == 0 ? BATCH_COUNT / BATCH_COUNT_QUERY : BATCH_COUNT / BATCH_COUNT_QUERY + 1;
         Integer oneBatchTotalCount = Math.toIntExact(totalCount % BATCH_COUNT_QUERY == 0 ? totalCount / BATCH_COUNT_QUERY : totalCount / BATCH_COUNT_QUERY + 1);
@@ -141,8 +277,7 @@ public class ExcelExportRunner {
         excelWriter.finish();   // 不finish文件会报错
     }
 
-    private void runBatchBySql(String fileNamePath,String fileName,Long totalCount,Object sqlFilterClass,Integer sheetNum,AtomicLong currentCount,AtomicLong sheetCutCount){
-        ExcelWriter excelWriter = EasyExcel.write(fileNamePath, dataClass).build();
+    private void runBatchBySql(ExcelWriter excelWriter,String fileName,Long totalCount,Object sqlFilterClass,Integer sheetNum,AtomicLong currentCount,AtomicLong sheetCutCount){
         WriteSheet writeSheet = EasyExcel.writerSheet(sheetName).build();
 
         while (currentCount.get() < totalCount){
@@ -176,58 +311,6 @@ public class ExcelExportRunner {
 
             excelWriter.finish();   // 不finish文件会报错
 
-        }
-    }
-
-    public ExportProgress runAsync(Object sqlFilterClass){
-        String fileName = UUID.randomUUID()+".xlsx";
-        ExecutorService executor = Executors.newSingleThreadExecutor();
-        String key = generateConcurrentUUID(EXPORT_EXCEL_REDIS_KEY);
-        String keyStr = EXPORT_EXCEL_REDIS_KEY + key;
-        this.processKey = keyStr;
-        this.preKey = key;
-        ExportProgress progressObj1 = new ExportProgress(preKey, 0.0, 1,fileName);
-        redisTemplate.opsForValue().set(processKey, progressObj1);
-        executor.submit(() -> {
-            try {
-                this.run(fileName,sqlFilterClass);
-            }catch (Exception e){
-                e.printStackTrace();
-            }
-        });
-        return progressObj1;
-    }
-
-    public ExportProgress runAsync(){
-        return this.runAsync(null);
-    }
-
-    public static void downloadExcel(HttpServletResponse response, String fileName){
-        // 假设你有一个文件路径
-        File file = new File(fileSavePath + fileName);
-
-        // 设置响应头
-        response.setContentType("application/octet-stream");
-        response.setHeader(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=" + fileName);
-        response.setHeader("Access-Control-Expose-Headers", "Content-Disposition");
-        response.setContentLengthLong(file.length());
-        // 读取文件并写入响应
-        try (BufferedInputStream bis = new BufferedInputStream(new FileInputStream(file));
-             OutputStream os = response.getOutputStream()) {
-            byte[] buffer = new byte[1024];
-            int bytesRead;
-            while ((bytesRead = bis.read(buffer)) != -1) {
-                os.write(buffer, 0, bytesRead);
-            }
-        } catch (IOException e) {
-            // 处理异常，例如记录日志
-            e.printStackTrace();
-        }
-        try {
-            Files.deleteIfExists(file.toPath());
-        } catch (IOException e) {
-            e.printStackTrace();
-            System.out.println("-------------- 导出excel临时文件删除失败 -----------------");
         }
     }
 
