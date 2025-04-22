@@ -296,8 +296,8 @@ public class ExcelExportRunner {
                 List<Object> batch = objects.subList(start,end);
 
                 excelWriter.write(batch, writeSheet);
-                currentCount.addAndGet(objects.size());
-                sheetCutCount.addAndGet(objects.size());
+                currentCount.addAndGet(batch.size());
+                sheetCutCount.addAndGet(batch.size());
 
                 ExportProgress progressObj = new ExportProgress(preKey, ((double)currentCount.get()/(double)totalCount), 1,fileName);
                 redisTemplate.opsForValue().set(processKey, progressObj);
